@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Jet Universe</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* HUD Overlay */
+        .hud-overlay {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            color: #00ffcc;
+            text-align: center;
+            pointer-events: none;
+            background: rgba(0, 20, 30, 0.7);
+            padding: 12px 25px;
+            border: 1px solid #00ffcc;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+        }
+
+        .hud-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .hud-sub {
+            font-size: 0.75rem;
+            color: #ffaa00;
+            margin-top: 4px;
+            letter-spacing: 1px;
+        }
+
+        /* 3D Floating HTML Text Elements */
+        .jet-label {
+            position: absolute;
+            color: #00ffcc;
+            font-weight: bold;
+            font-size: 1.2rem;
+            white-space: nowrap;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            text-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffcc;
+            letter-spacing: 2px;
+            font-family: 'Arial Black', Gadget, sans-serif;
+            transition: opacity 0.1s ease;
+        }
+
+        .jet-label.highlight {
+            color: #ff3300;
+            text-shadow: 0 0 10px #ff3300, 0 0 20px #ff3300;
+        }
+    </style>
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div class="hud-overlay">
+        <div class="hud-title">⚡ TACTICAL JET SPACE 3D ⚡</div>
+        <div class="hud-sub">STATUS: WARP SPEED INTERCEPT</div>
+    </div>
+
+    <div id="canvas-container"></div>
+    <div id="labels-container"></div>
+
+    <script>
+        // Daftar nama jet tempur
+        const jetNames = [
+            "F-22 RAPTOR", "SU-57 FELON", "F-35 LIGHTNING II", 
+            "EUROFIGHTER TYPHOON", "J-20 MIGHTY DRAGON", "DASSAULT RAFALE", 
+            "F-15E STRIKE EAGLE", "SU-35 FLANKER-E", "F-16 VIPER", 
+            "MIG-35 FULCRUM", "JAS 39 GRIPEN", "F/A-18 SUPER HORNET"
+        ];
+
+        // Setup Three.js Scene
+        const container = document.getElementById('canvas-container');
+        const labelsContainer = document.getElementById('labels-container');
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.002);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 0;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        // Grid Tunnel Effect (Grid 3D di Alam Semesta)
+        const gridTop = new THREE.GridHelper(1000, 50, 0x00ffcc, 0x004444);
+        gridTop.position.y = 100;
+        scene.add(gridTop);
+
+        const gridBottom = new THREE.GridHelper(1000, 50, 0x00ffcc, 0x004444);
+        gridBottom.position.y = -100;
+        scene.add(gridBottom);
+
+        // Particle Stars (Bintang 3D)
+        const starsGeometry = new THREE.BufferGeometry();
+        const starsCount = 1500;
+        const starPositions = new Float32Array(starsCount * 3);
+
+        for (let i = 0; i < starsCount * 3; i += 3) {
+            starPositions[i] = (Math.random() - 0.5) * 400;
+            starPositions[i + 1] = (Math.random() - 0.5) * 400;
+            starPositions[i + 2] = -Math.random() * 800;
+        }
+
+        starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        const starsMaterial = new THREE.PointsMaterial({ color: 0x00ffcc, size: 1.2 });
+        const starField = new THREE.Points(starsGeometry, starsMaterial);
+        scene.add(starField);
+
+        // Objek Teks Jet 3D
+        const jetObjects = [];
+        const totalJets = 30;
+
+        for (let i = 0; i < totalJets; i++) {
+            const div = document.createElement('div');
+            div.className = 'jet-label';
+            
+            // Acak nama & warna
+            const name = jetNames[Math.floor(Math.random() * jetNames.length)];
+            div.innerText = name;
+
+            if (Math.random() > 0.7) {
+                div.classList.add('highlight');
+            }
+
+            labelsContainer.appendChild(div);
+
+            // Posisi 3D awal
+            const x = (Math.random() - 0.5) * 250;
+            const y = (Math.random() - 0.5) * 120;
+            const z = -Math.random() * 600 - 50;
+
+            jetObjects.push({
+                element: div,
+                pos: new THREE.Vector3(x, y, z),
+                speed: 1.5 + Math.random() * 1.5
+            });
+        }
+
+        // Loop Animasi
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Pergerakan Bintang
+            const positions = starField.geometry.attributes.position.array;
+            for (let i = 2; i < starsCount * 3; i += 3) {
+                positions[i] += 2;
+                if (positions[i] > 0) {
+                    positions[i] = -800;
+                }
+            }
+            starField.geometry.attributes.position.needsUpdate = true;
+
+            // Pergerakan Teks Jet mendekat ke Layar
+            jetObjects.forEach(obj => {
+                obj.pos.z += obj.speed;
+
+                // Jika sudah melewati kamera, reset ke belakang lagi
+                if (obj.pos.z > 10) {
+                    obj.pos.z = -600;
+                    obj.pos.x = (Math.random() - 0.5) * 250;
+                    obj.pos.y = (Math.random() - 0.5) * 120;
+                    
+                    // Ganti nama acak saat reset
+                    obj.element.innerText = jetNames[Math.floor(Math.random() * jetNames.length)];
+                }
+
+                // Proyeksi koordinat 3D ke Layar 2D
+                const vector = obj.pos.clone();
+                vector.project(camera);
+
+                const x = (vector.x * .5 + .5) * window.innerWidth;
+                const y = (-(vector.y * .5) + .5) * window.innerHeight;
+
+                // Hitung opacity berdasarkan jarak
+                const distance = Math.abs(obj.pos.z);
+                let opacity = 1 - (distance / 600);
+                if (obj.pos.z > -20) {
+                    opacity = (10 - obj.pos.z) / 30; // Fade out saat sangat dekat
+                }
+
+                obj.element.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0)`;
+                obj.element.style.opacity = Math.max(0, opacity);
+                
+                // Ukuran font membesar saat makin dekat
+                const scale = Math.max(0.1, (1 - distance / 600) * 1.8);
+                obj.element.style.fontSize = `${scale * 1.5}rem`;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Responsive Resize Window
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+  </html>
+  
